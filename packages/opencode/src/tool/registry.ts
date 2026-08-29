@@ -214,8 +214,9 @@ const layer = Layer.effect(
           }
         }
 
-        yield* config.get()
+        const cfg = yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
+        const swarmEnabled = cfg.swarm?.enabled === true
 
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
@@ -261,10 +262,7 @@ const layer = Layer.effect(
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
-            tool.swarm_chat,
-            tool.swarm_dm,
-            tool.swarm_board,
-            tool.swarm_recall,
+            ...(swarmEnabled ? [tool.swarm_chat, tool.swarm_dm, tool.swarm_board, tool.swarm_recall] : []),
           ],
           task: tool.task,
           read: tool.read,
@@ -282,7 +280,7 @@ const layer = Layer.effect(
     })
 
     const describeTask = Effect.fn("ToolRegistry.describeTask")(function* (agent: Agent.Info) {
-      const items = (yield* agents.list()).filter((item) => item.mode !== "primary")
+      const items = (yield* agents.list()).filter((item) => item.mode !== "primary" && item.hidden !== true)
       const filtered = items.filter(
         (item) => Permission.evaluate("task", item.name, agent.permission).action !== "deny",
       )
@@ -308,7 +306,12 @@ const layer = Layer.effect(
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
+      const denied = Permission.disabled(
+        ["swarm_chat", "swarm_dm", "swarm_board", "swarm_recall"],
+        Permission.merge(input.agent.permission, input.permission ?? []),
+      )
       const filtered = (yield* all()).filter((tool) => {
+        if (denied.has(tool.id)) return false
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }

@@ -1,6 +1,6 @@
 # Swarm
 
-Enable with `"swarm": { "enabled": true, "infinite_permissions": true }` and `"subagent_depth": 3` in `opencode.json`.
+Enable with `"swarm": { "enabled": true }` in `opencode.json`. That raises the subagent depth floor to 3 so orchestrator → manager → worker can nest. Set `"subagent_depth"` higher only if you need more layers. `"infinite_permissions": true` still skips parent deny inheritance when spawning swarm agents.
 
 Built-in agents:
 - `orchestrator` (primary): owns the shared goal and spawns managers

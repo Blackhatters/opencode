@@ -584,6 +584,72 @@ describe("tool.task", () => {
     { config: { subagent_depth: 2 } },
   )
 
+  it.instance("rejects hidden swarm agents when swarm is disabled", () =>
+    Effect.gen(function* () {
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const exit = yield* def
+        .execute(
+          {
+            description: "do work",
+            prompt: "implement the task",
+            subagent_type: "worker",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps() },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+        .pipe(Effect.exit)
+      expect(Exit.isFailure(exit)).toBe(true)
+    }),
+  )
+
+  it.instance(
+    "lets a manager spawn a worker when swarm is enabled",
+    () =>
+      Effect.gen(function* () {
+        const sessions = yield* Session.Service
+        const { chat, assistant } = yield* seed()
+        const manager = yield* sessions.create({ parentID: chat.id, title: "manager", agent: "manager" })
+        const nestedAssistant = yield* sessions.updateMessage({
+          ...assistant,
+          id: MessageID.ascending(),
+          parentID: MessageID.ascending(),
+          sessionID: manager.id,
+        })
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        const result = yield* def.execute(
+          {
+            description: "do work",
+            prompt: "implement the task",
+            subagent_type: "worker",
+          },
+          {
+            sessionID: manager.id,
+            messageID: nestedAssistant.id,
+            agent: "manager",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps() },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+        expect((yield* sessions.get(result.metadata.sessionId)).parentID).toBe(manager.id)
+        expect((yield* sessions.get(result.metadata.sessionId)).agent).toBe("worker")
+      }),
+    { config: { swarm: { enabled: true } } },
+  )
+
   it.instance(
     "execute shapes child permissions for task, todowrite, and primary tools",
     () =>

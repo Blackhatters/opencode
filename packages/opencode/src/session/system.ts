@@ -27,6 +27,7 @@ import { Config } from "@/config/config"
 import { Swarm } from "@opencode-ai/schema/swarm"
 import { SwarmBoard } from "@opencode-ai/core/swarm/board"
 import { SwarmChat } from "@opencode-ai/core/swarm/chat"
+import { SwarmSnapshot } from "@opencode-ai/core/swarm/snapshot"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse")) {
@@ -149,32 +150,7 @@ const layer = Layer.effect(
         const ctx = yield* InstanceState.context
         const swarmID = Swarm.ID.make(cfg.swarm.id ?? ctx.project.id)
         const [items, messages] = yield* Effect.all([board.list({ swarmID }), chat.listChat(swarmID, 12)])
-        const open = items.filter((item) => item.status !== "done")
-        return [
-          "Shared swarm memory for this project.",
-          "<swarm>",
-          `  <id>${swarmID}</id>`,
-          "  <board>",
-          ...(open.length === 0
-            ? ["    (no open items)"]
-            : open.flatMap((item) => [
-                "    <item>",
-                `      <id>${item.id}</id>`,
-                `      <kind>${item.kind}</kind>`,
-                `      <status>${item.status}</status>`,
-                `      <title>${item.title}</title>`,
-                ...(item.assigneeSessionID ? [`      <assignee>${item.assigneeSessionID}</assignee>`] : []),
-                `      <body>${item.body}</body>`,
-                "    </item>",
-              ])),
-          "  </board>",
-          "  <chat>",
-          ...(messages.length === 0
-            ? ["    (empty)"]
-            : messages.map((message) => `    <message from="${message.fromAgent}">${message.text}</message>`)),
-          "  </chat>",
-          "</swarm>",
-        ].join("\n")
+        return SwarmSnapshot.render({ swarmID, items, messages })
       }),
     })
   }),

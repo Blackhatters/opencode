@@ -2,6 +2,8 @@
 
 Enable with `"swarm": { "enabled": true, "infinite_permissions": true }` in `opencode.json`. Enabling swarm raises the effective `subagent_depth` default from 1 to 3 so orchestrator → manager → worker can run; set `subagent_depth` explicitly to override.
 
+New sessions start with an empty swarm board, chat, and DMs. Later changes arrive as context diffs. Set `"board_diff": false`, `"chat_diff": false`, or `"dm_diff": false` to include that section in the session baseline.
+
 Built-in agents:
 - `orchestrator` (primary): owns the shared goal and spawns managers
 - `manager` (subagent): coordinates workers for one slice of the goal
@@ -17,7 +19,7 @@ Tools (allowed on swarm agents):
 
 `infinite_permissions` (or `options.swarm: true` on an agent) skips parent deny inheritance when spawning subagents.
 
-Inspect the board, broadcast chat, and direct messages with `opencode swarm` or the TUI `/swarm` command. `opencode swarm board`, `opencode swarm chat`, and `opencode swarm dm` show one section.
+Inspect the board, broadcast chat, and direct messages with `opencode swarm` or the TUI `/swarm` command. `/swarm` asks which session to inspect first, then shows that session's DMs plus the shared board and chat. `s` returns to the session list. `opencode swarm board`, `opencode swarm chat`, and `opencode swarm dm` show one section; pass `--session` to filter DMs.
 
 Export the RAG index as an Obsidian vault with `opencode swarm export`. It writes markdown notes to `.opencode/swarm-rag` (or a path you pass). Use `--reindex` to rebuild from the workspace first, then open that folder as a vault.
 

@@ -1,13 +1,16 @@
 import { useProject } from "../../context/project"
 import { useSync } from "../../context/sync"
-import { createMemo, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { useTheme } from "../../context/theme"
 import { useTuiConfig } from "../../config"
+import { useRoute } from "../../context/route"
 import { InstallationChannel, InstallationVersion } from "@opencode-ai/core/installation/version"
 import { usePluginRuntime } from "../../plugin/runtime"
 
 import { getScrollAcceleration } from "../../util/scroll"
 import { WorkspaceLabel } from "../../component/workspace-label"
+import { Locale } from "../../util/locale"
+import { recentSidebarSessions } from "../../util/session"
 
 export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const pluginRuntime = usePluginRuntime()
@@ -82,6 +85,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 </Show>
               </box>
             </pluginRuntime.Slot>
+            <SessionSwitcher sessionID={props.sessionID} />
             <pluginRuntime.Slot name="sidebar_content" session_id={props.sessionID} />
           </box>
         </scrollbox>
@@ -97,6 +101,49 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
             </text>
           </pluginRuntime.Slot>
         </box>
+      </box>
+    </Show>
+  )
+}
+
+function SessionSwitcher(props: { sessionID: string }) {
+  const route = useRoute()
+  const sync = useSync()
+  const { theme } = useTheme()
+  const [open, setOpen] = createSignal(true)
+  const items = createMemo(() => recentSidebarSessions(sync.data.session, props.sessionID))
+
+  return (
+    <Show when={items().length > 0}>
+      <box>
+        <box flexDirection="row" gap={1} onMouseDown={() => items().length > 2 && setOpen((value) => !value)}>
+          <Show when={items().length > 2}>
+            <text fg={theme.text}>{open() ? "▼" : "▶"}</text>
+          </Show>
+          <text fg={theme.text}>
+            <b>Sessions</b>
+          </text>
+        </box>
+        <Show when={items().length <= 2 || open()}>
+          <For each={items()}>
+            {(session) => {
+              const current = session.id === props.sessionID
+              return (
+                <text
+                  fg={current ? theme.accent : theme.textMuted}
+                  wrapMode="none"
+                  onMouseUp={() => {
+                    if (current) return
+                    route.navigate({ type: "session", sessionID: session.id })
+                  }}
+                >
+                  {session.parentID ? "  " : ""}
+                  {Locale.truncate(session.title, session.parentID ? 34 : 36)}
+                </text>
+              )
+            }}
+          </For>
+        </Show>
       </box>
     </Show>
   )

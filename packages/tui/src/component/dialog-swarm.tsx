@@ -4,10 +4,14 @@ import { createEffect, createMemo, createResource, createSignal, For, Show, type
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { useSDK } from "../context/sdk"
+import { useSync } from "../context/sync"
+import { useRoute } from "../context/route"
 import { useTuiConfig } from "../config"
 import { useBindings } from "../keymap"
+import { DialogSelect } from "../ui/dialog-select"
 import { Locale } from "../util/locale"
 import { getScrollAcceleration } from "../util/scroll"
+import { createDebouncedSignal } from "../util/signal"
 
 type Section = "all" | "board" | "chat" | "dm"
 
@@ -35,9 +39,129 @@ interface Snapshot {
   dm: Message[]
 }
 
+interface SwarmSession {
+  id: string
+  title: string
+  parentID?: string
+  time: { updated: number }
+}
+
 const sections: Section[] = ["all", "board", "chat", "dm"]
 
+export function createDialogSwarmSessionQuery(input: { search?: string; filter: { scope?: "project"; path?: string } }) {
+  const search = input.search?.trim()
+  return {
+    limit: search ? 50 : 200,
+    ...(search ? { search } : {}),
+    ...input.filter,
+  }
+}
+
+export function loadDialogSwarmSessions<T>(input: {
+  search?: string
+  filter: { scope?: "project"; path?: string }
+  list: (query: ReturnType<typeof createDialogSwarmSessionQuery>) => Promise<{ data?: T[] }>
+}) {
+  return input.list(createDialogSwarmSessionQuery(input)).then(
+    (result) => result.data,
+    () => undefined,
+  )
+}
+
+export function swarmSessionOptions(input: { sessions: ReadonlyArray<SwarmSession> }) {
+  const byID = new Map(input.sessions.map((session) => [session.id, session]))
+  const children = new Map<string, SwarmSession[]>()
+  const roots: SwarmSession[] = []
+  const orphans: SwarmSession[] = []
+  for (const session of input.sessions) {
+    if (!session.parentID) {
+      roots.push(session)
+      continue
+    }
+    if (!byID.has(session.parentID)) {
+      orphans.push(session)
+      continue
+    }
+    const list = children.get(session.parentID) ?? []
+    list.push(session)
+    children.set(session.parentID, list)
+  }
+
+  const recency = (left: SwarmSession, right: SwarmSession) => right.time.updated - left.time.updated
+  const option = (session: SwarmSession, category: string) => ({
+    value: session.id,
+    title: session.title,
+    category,
+    footer: Locale.truncate(session.id, 22),
+  })
+
+  return [
+    ...roots.toSorted(recency).flatMap((root) => [
+      option(root, root.title),
+      ...(children.get(root.id) ?? []).toSorted(recency).map((child) => option(child, root.title)),
+    ]),
+    ...orphans.toSorted(recency).map((session) => option(session, "Other")),
+  ]
+}
+
 export function DialogSwarm() {
+  return <DialogSwarmSessions />
+}
+
+function DialogSwarmSessions() {
+  const dialog = useDialog()
+  const route = useRoute()
+  const sync = useSync()
+  const sdk = useSDK()
+  const [search, setSearch] = createDebouncedSignal("", 150)
+
+  const [browseResults] = createResource(
+    () => sync.session.query(),
+    (filter) => loadDialogSwarmSessions({ filter, list: (query) => sdk.client.session.list(query) }),
+  )
+  const [searchResults] = createResource(
+    () => ({ query: search(), filter: sync.session.query() }),
+    (input) => {
+      if (!input.query) return undefined
+      return loadDialogSwarmSessions({
+        search: input.query,
+        filter: input.filter,
+        list: (query) => sdk.client.session.list(query),
+      })
+    },
+  )
+
+  const currentSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
+  const sessions = createMemo(() => {
+    const result = searchResults() ?? browseResults() ?? sync.data.session
+    const synced = new Map(sync.data.session.map((session) => [session.id, session]))
+    const query = search().trim().toLowerCase()
+    return result
+      .map((session) => synced.get(session.id) ?? session)
+      .filter(
+        (session) => !query || session.title.toLowerCase().includes(query) || session.id.toLowerCase().includes(query),
+      )
+  })
+
+  const options = createMemo(() => swarmSessionOptions({ sessions: sessions() }))
+
+  return (
+    <DialogSelect
+      title="Swarm session"
+      options={options()}
+      skipFilter={true}
+      preserveSelection={true}
+      current={currentSessionID()}
+      onFilter={setSearch}
+      onSelect={(option) => {
+        const session = sessions().find((item) => item.id === option.value)
+        dialog.replace(() => <DialogSwarmView sessionID={option.value} title={session?.title ?? option.title} />)
+      }}
+    />
+  )
+}
+
+function DialogSwarmView(props: { sessionID: string; title: string }) {
   const { theme } = useTheme()
   const dialog = useDialog()
   const sdk = useSDK()
@@ -54,6 +178,7 @@ export function DialogSwarm() {
   const [snapshot] = createResource(async () => {
     const url = new URL("/experimental/swarm", sdk.url)
     if (sdk.directory) url.searchParams.set("directory", sdk.directory)
+    url.searchParams.set("session", props.sessionID)
     const response = await sdk.fetch(url.toString())
     if (!response.ok) throw new Error(`Failed to load swarm (${response.status})`)
     return (await response.json()) as Snapshot
@@ -76,6 +201,12 @@ export function DialogSwarm() {
 
   useBindings(() => ({
     bindings: [
+      {
+        key: "s",
+        desc: "Sessions",
+        group: "Dialog",
+        cmd: () => dialog.replace(() => <DialogSwarmSessions />),
+      },
       {
         key: "tab",
         desc: "Next section",
@@ -141,7 +272,7 @@ export function DialogSwarm() {
           {title()}
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-          ↑↓ scroll · esc
+          s sessions · ↑↓ scroll · esc
         </text>
       </box>
       <Show when={snapshot.error}>
@@ -153,6 +284,9 @@ export function DialogSwarm() {
       <Show when={snapshot()}>
         {(data) => (
           <box gap={1}>
+            <text fg={theme.textMuted} wrapMode="word">
+              {props.title} · {props.sessionID}
+            </text>
             <text fg={theme.textMuted}>
               {data().swarmID} · tab {section()}
             </text>
@@ -177,22 +311,7 @@ export function DialogSwarm() {
                   <Section title="Board">
                     <Show when={data().board.length > 0} fallback={<text fg={theme.textMuted}>(no items)</text>}>
                       <For each={data().board}>
-                        {(item) => (
-                          <box>
-                            <text fg={theme.text} wrapMode="word">
-                              <b>{item.kind}</b> {item.status} {item.title}
-                            </text>
-                            <text fg={theme.textMuted} wrapMode="word">
-                              {item.id}
-                              {item.assigneeSessionID ? ` · ${item.assigneeSessionID}` : ""}
-                            </text>
-                            <Show when={item.body}>
-                              <text fg={theme.text} wrapMode="word">
-                                {item.body}
-                              </text>
-                            </Show>
-                          </box>
-                        )}
+                        {(item) => <BoardLine item={item} sessionID={props.sessionID} />}
                       </For>
                     </Show>
                   </Section>
@@ -228,6 +347,27 @@ function Section(props: ParentProps<{ title: string }>) {
         {props.title}
       </text>
       {props.children}
+    </box>
+  )
+}
+
+function BoardLine(props: { item: BoardItem; sessionID: string }) {
+  const { theme } = useTheme()
+  const assigned = props.item.assigneeSessionID === props.sessionID
+  return (
+    <box>
+      <text fg={assigned ? theme.accent : theme.text} wrapMode="word">
+        <b>{props.item.kind}</b> {props.item.status} {props.item.title}
+      </text>
+      <text fg={theme.textMuted} wrapMode="word">
+        {props.item.id}
+        {props.item.assigneeSessionID ? ` · ${props.item.assigneeSessionID}` : ""}
+      </text>
+      <Show when={props.item.body}>
+        <text fg={theme.text} wrapMode="word">
+          {props.item.body}
+        </text>
+      </Show>
     </box>
   )
 }

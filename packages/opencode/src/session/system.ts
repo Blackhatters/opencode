@@ -148,7 +148,14 @@ const layer = Layer.effect(
         if (cfg.swarm?.enabled !== true) return
         const ctx = yield* InstanceState.context
         const swarmID = Swarm.ID.make(cfg.swarm.id ?? ctx.project.id)
-        const [items, messages] = yield* Effect.all([board.list({ swarmID }), chat.listChat(swarmID, 12)])
+        const boardDiff = cfg.swarm.board_diff !== false
+        const chatDiff = cfg.swarm.chat_diff !== false
+        const dmDiff = cfg.swarm.dm_diff !== false
+        const [items, messages, dms] = yield* Effect.all([
+          boardDiff ? Effect.succeed([]) : board.list({ swarmID }),
+          chatDiff ? Effect.succeed([]) : chat.listChat(swarmID, 12),
+          dmDiff ? Effect.succeed([]) : chat.listDM({ swarmID, limit: 12 }),
+        ])
         const open = items.filter((item) => item.status !== "done")
         return [
           "Shared swarm memory for this project.",
@@ -156,7 +163,7 @@ const layer = Layer.effect(
           `  <id>${swarmID}</id>`,
           "  <board>",
           ...(open.length === 0
-            ? ["    (no open items)"]
+            ? ["    (empty)"]
             : open.flatMap((item) => [
                 "    <item>",
                 `      <id>${item.id}</id>`,
@@ -173,6 +180,15 @@ const layer = Layer.effect(
             ? ["    (empty)"]
             : messages.map((message) => `    <message from="${message.fromAgent}">${message.text}</message>`)),
           "  </chat>",
+          "  <dm>",
+          ...(dms.length === 0
+            ? ["    (empty)"]
+            : dms.map((message) =>
+                message.toSessionID
+                  ? `    <message from="${message.fromAgent}" to="${message.toSessionID}">${message.text}</message>`
+                  : `    <message from="${message.fromAgent}">${message.text}</message>`,
+              )),
+          "  </dm>",
           "</swarm>",
         ].join("\n")
       }),

@@ -1,0 +1,5 @@
+Query the swarm project RAG index or rebuild it.
+
+Use query to recall relevant project files and excerpts for the current task.
+Use index after large file changes so later queries stay current.
+This is shared swarm memory — results come from the project index, not your private transcript.

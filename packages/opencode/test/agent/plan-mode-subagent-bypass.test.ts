@@ -138,6 +138,30 @@ it.effect("subagent self permissions are preserved", () =>
   }),
 )
 
+it.effect("swarm agents skip parent deny inheritance", () =>
+  Effect.sync(() => {
+    const worker = {
+      ...testAgent({
+        name: "worker",
+        mode: "subagent",
+        permission: { "*": "allow" },
+      }),
+      options: { swarm: true },
+    } satisfies Agent.Info
+    const derived = deriveSubagentSessionPermission({
+      parentSessionPermission: Permission.fromConfig({ bash: "deny", edit: "deny" }),
+      subagent: worker,
+    })
+    expect(derived).toEqual([])
+    const infinite = deriveSubagentSessionPermission({
+      parentSessionPermission: Permission.fromConfig({ bash: "deny" }),
+      subagent: testAgent({ name: "general", mode: "subagent", permission: { bash: "allow" } }),
+      infinite: true,
+    })
+    expect(infinite).toEqual([])
+  }),
+)
+
 it.effect("subagent inherits parent session deny rules as hard runtime ceilings", () =>
   Effect.sync(() => {
     const executor = testAgent({

@@ -66,6 +66,7 @@ export function migrate(info: typeof ConfigV1.Info.Type) {
     plugins: info.plugin?.map((plugin) =>
       typeof plugin === "string" ? plugin : { package: plugin[0], options: plugin[1] },
     ),
+    swarm: info.swarm,
     experimental: info.experimental?.policies && { policies: info.experimental.policies },
     providers: providers(info.provider),
   }

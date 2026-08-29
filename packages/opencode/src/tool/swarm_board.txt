@@ -1,0 +1,6 @@
+Read and update the shared swarm goal/task board.
+
+Kinds: goal, task, note.
+Statuses: open, in_progress, done, blocked.
+Create items so other agents can see work. Assign tasks with assignee when a specific session should own them.
+List and get before creating duplicates. Update status as work progresses.

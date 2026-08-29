@@ -16,6 +16,7 @@ import { ConfigPluginV1 } from "./plugin"
 import { ConfigProviderV1 } from "./provider"
 import { ConfigServerV1 } from "./server"
 import { ConfigSkillsV1 } from "./skills"
+import { ConfigSwarm } from "../../config/swarm"
 
 export type Layout = ConfigLayoutV1.Layout
 
@@ -84,6 +85,9 @@ export const Info = Schema.Struct({
   subagent_depth: Schema.optional(NonNegativeInt).annotate({
     description: "Maximum subagent nesting depth. Defaults to 1, which prevents subagents from launching subagents.",
   }),
+  swarm: Schema.optional(ConfigSwarm.Info).annotate({
+    description: "Autonomous agent swarm: multi-layer agents, shared board, chat, RAG, and idle watchdog",
+  }),
   username: Schema.optional(Schema.String).annotate({
     description: "Custom username to display in conversations instead of system username",
   }),
@@ -103,6 +107,9 @@ export const Info = Schema.Struct({
         title: Schema.optional(ConfigAgentV1.Info),
         summary: Schema.optional(ConfigAgentV1.Info),
         compaction: Schema.optional(ConfigAgentV1.Info),
+        orchestrator: Schema.optional(ConfigAgentV1.Info),
+        manager: Schema.optional(ConfigAgentV1.Info),
+        worker: Schema.optional(ConfigAgentV1.Info),
       }),
       [Schema.Record(Schema.String, ConfigAgentV1.Info)],
     ),

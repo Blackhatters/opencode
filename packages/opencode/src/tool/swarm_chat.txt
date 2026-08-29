@@ -1,0 +1,5 @@
+Post to the swarm global chat or read recent broadcast messages.
+
+Use send to share progress, blockers, or findings with every swarm agent.
+Use history to catch up on recent global chat before acting.
+Do not use this for private coordination — use swarm_dm for that.

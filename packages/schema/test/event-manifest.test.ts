@@ -5,12 +5,13 @@ import { IdeEvent } from "../src/ide-event"
 import { SessionEvent } from "../src/session-event"
 import { SessionTodo } from "../src/session-todo"
 import { SessionV1 } from "../src/session-v1"
+import { SwarmEvent } from "../src/swarm-event"
 import { WorkspaceEvent } from "../src/workspace-event"
 
 describe("public event manifest", () => {
   test("owns the complete public event surface", () => {
-    expect(EventManifest.ServerDefinitions.length).toBe(55)
-    expect(EventManifest.Definitions.length).toBe(85)
+    expect(EventManifest.ServerDefinitions.length).toBe(62)
+    expect(EventManifest.Definitions.length).toBe(92)
     expect(SessionV1.Event.Definitions).toEqual([
       SessionV1.Event.Created,
       SessionV1.Event.Updated,
@@ -23,8 +24,8 @@ describe("public event manifest", () => {
       SessionV1.Event.Diff,
       SessionV1.Event.Error,
     ])
-    expect(EventManifest.Latest.size).toBe(85)
-    expect(EventManifest.Durable.size).toBe(32)
+    expect(EventManifest.Latest.size).toBe(92)
+    expect(EventManifest.Durable.size).toBe(39)
   })
 
   test("uses canonical definitions for current public events", () => {
@@ -43,11 +44,13 @@ describe("public event manifest", () => {
     expect(EventManifest.Latest.has("ide.installed")).toBe(false)
     expect(IdeEvent.Definitions).toEqual([IdeEvent.Installed])
     expect(EventManifest.Definitions.slice(40, 43)).toEqual([
-      SessionV1.Event.PartDelta,
-      SessionV1.Event.Diff,
-      SessionV1.Event.Error,
+      SessionEvent.RevertEvent.Staged,
+      SessionEvent.RevertEvent.Cleared,
+      SessionEvent.RevertEvent.Committed,
     ])
     expect(EventManifest.Durable.has("session.next.step.ended.1")).toBe(false)
     expect(EventManifest.Durable.get("session.next.step.ended.2")).toBe(SessionEvent.Step.Ended)
+    expect(EventManifest.Latest.get("swarm.chat.posted")).toBe(SwarmEvent.ChatPosted)
+    expect(EventManifest.Durable.get("swarm.dm.posted.1")).toBe(SwarmEvent.DMPosted)
   })
 })

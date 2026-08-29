@@ -1,0 +1,5 @@
+Send a direct message to one swarm agent or read your private thread with them.
+
+Use send when only one session should see the message (handoffs, questions, nudges).
+Use history to read the conversation with a specific session, or your full inbox if omitted.
+The recipient is woken automatically when they are idle.

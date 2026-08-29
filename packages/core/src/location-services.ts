@@ -30,6 +30,7 @@ import { SessionTodo } from "./session/todo"
 import { SkillV2 } from "./skill"
 import { SkillGuidance } from "./skill/guidance"
 import { Snapshot } from "./snapshot"
+import { SwarmContext } from "./swarm/context"
 import { SystemContextBuiltIns } from "./system-context/builtins"
 import { SystemContextRegistry } from "./system-context/registry"
 import { BuiltInTools } from "./tool/builtins"
@@ -60,6 +61,7 @@ export const locationServices = LayerNode.group([
   SkillV2.node,
   SystemContextRegistry.node,
   SystemContextBuiltIns.node,
+  SwarmContext.node,
   LocationMutation.node,
   FileMutation.node,
   PermissionV2.node,

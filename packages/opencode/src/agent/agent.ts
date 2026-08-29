@@ -14,6 +14,9 @@ import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
+import PROMPT_MANAGER from "./prompt/manager.txt"
+import PROMPT_WORKER from "./prompt/worker.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
@@ -133,7 +136,23 @@ const layer = Layer.effect(
             "*.env.*": "ask",
             "*.env.example": "allow",
           },
+          swarm_chat: "deny",
+          swarm_dm: "deny",
+          swarm_board: "deny",
+          swarm_recall: "deny",
         })
+
+        const swarmTools = Permission.fromConfig({
+          "*": "allow",
+          swarm_chat: "allow",
+          swarm_dm: "allow",
+          swarm_board: "allow",
+          swarm_recall: "allow",
+          todowrite: "allow",
+          task: "allow",
+          question: "allow",
+        })
+        const swarmEnabled = cfg.swarm?.enabled === true
 
         const user = Permission.fromConfig(cfg.permission ?? {})
 
@@ -262,6 +281,43 @@ const layer = Layer.effect(
             ),
             prompt: PROMPT_SUMMARY,
           },
+          orchestrator: {
+            name: "orchestrator",
+            description: "Swarm orchestrator. Owns the shared goal, spawns managers, and keeps the swarm moving.",
+            prompt: PROMPT_ORCHESTRATOR,
+            permission: Permission.merge(defaults, swarmTools, user),
+            options: { swarm: true },
+            mode: "primary",
+            native: true,
+            hidden: !swarmEnabled,
+          },
+          manager: {
+            name: "manager",
+            description: "Swarm manager. Coordinates workers for a slice of the orchestrator goal.",
+            prompt: PROMPT_MANAGER,
+            permission: Permission.merge(defaults, swarmTools, user),
+            options: { swarm: true },
+            mode: "subagent",
+            native: true,
+            hidden: !swarmEnabled,
+          },
+          worker: {
+            name: "worker",
+            description: "Swarm worker. Executes an assigned board task and reports back.",
+            prompt: PROMPT_WORKER,
+            permission: Permission.merge(
+              defaults,
+              swarmTools,
+              Permission.fromConfig({
+                task: "deny",
+              }),
+              user,
+            ),
+            options: { swarm: true },
+            mode: "subagent",
+            native: true,
+            hidden: !swarmEnabled,
+          },
         }
 
         for (const [key, value] of Object.entries(cfg.agent ?? {})) {
@@ -291,6 +347,9 @@ const layer = Layer.effect(
           item.steps = value.steps ?? item.steps
           item.options = mergeDeep(item.options, value.options ?? {})
           item.permission = Permission.merge(item.permission, Permission.fromConfig(value.permission ?? {}))
+          if (item.options.swarm === true) {
+            item.permission = Permission.merge(item.permission, swarmTools)
+          }
         }
 
         // Ensure Truncate.GLOB is allowed unless explicitly configured

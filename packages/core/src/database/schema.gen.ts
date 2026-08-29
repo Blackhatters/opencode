@@ -236,6 +236,43 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`
+        CREATE TABLE \`swarm_board\` (
+          \`id\` text PRIMARY KEY,
+          \`swarm_id\` text NOT NULL,
+          \`kind\` text NOT NULL,
+          \`title\` text NOT NULL,
+          \`body\` text NOT NULL,
+          \`status\` text NOT NULL,
+          \`assignee_session_id\` text,
+          \`created_by_session_id\` text NOT NULL,
+          \`last_nudged_at\` integer,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`swarm_message\` (
+          \`id\` text PRIMARY KEY,
+          \`swarm_id\` text NOT NULL,
+          \`from_session_id\` text NOT NULL,
+          \`to_session_id\` text,
+          \`from_agent\` text NOT NULL,
+          \`text\` text NOT NULL,
+          \`time_created\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`swarm_rag\` (
+          \`id\` text PRIMARY KEY,
+          \`swarm_id\` text NOT NULL,
+          \`path\` text NOT NULL,
+          \`chunk_index\` integer NOT NULL,
+          \`text\` text NOT NULL,
+          \`embedding\` text NOT NULL,
+          \`time_created\` integer NOT NULL
+        );
+      `)
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(
@@ -269,6 +306,16 @@ export default {
       yield* tx.run(`CREATE INDEX \`session_workspace_idx\` ON \`session\` (\`workspace_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_parent_idx\` ON \`session\` (\`parent_id\`);`)
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`swarm_board_swarm_kind_status_idx\` ON \`swarm_board\` (\`swarm_id\`,\`kind\`,\`status\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`swarm_message_swarm_time_idx\` ON \`swarm_message\` (\`swarm_id\`,\`time_created\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`swarm_message_swarm_to_time_idx\` ON \`swarm_message\` (\`swarm_id\`,\`to_session_id\`,\`time_created\`);`,
+      )
+      yield* tx.run(`CREATE INDEX \`swarm_rag_swarm_path_idx\` ON \`swarm_rag\` (\`swarm_id\`,\`path\`);`)
     })
   },
 } satisfies Omit<DatabaseMigration.Migration, "id">

@@ -1,3 +1,22 @@
+# Swarm
+
+Enable with `"swarm": { "enabled": true, "infinite_permissions": true }` and `"subagent_depth": 3` in `opencode.json`.
+
+Built-in agents:
+- `orchestrator` (primary): owns the shared goal and spawns managers
+- `manager` (subagent): coordinates workers for one slice of the goal
+- `worker` (subagent): executes an assigned board task and does not spawn further agents
+
+Resume a prior agent with the `task` tool `task_id` so sessions stay reusable.
+
+Tools (allowed on swarm agents):
+- `swarm_chat` — global broadcast channel
+- `swarm_dm` — directed message; idle recipients are woken
+- `swarm_board` — shared goal/task/note board
+- `swarm_recall` — project RAG index (`query` / `index`)
+
+`infinite_permissions` (or `options.swarm: true` on an agent) skips parent deny inheritance when spawning subagents.
+
 # opencode database guide
 
 ## Database

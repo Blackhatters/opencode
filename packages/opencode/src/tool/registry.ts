@@ -10,6 +10,10 @@ import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
+import { SwarmChatTool } from "./swarm_chat"
+import { SwarmDMTool } from "./swarm_dm"
+import { SwarmBoardTool } from "./swarm_board"
+import { SwarmRecallTool } from "./swarm_recall"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
@@ -54,6 +58,9 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
+import { SwarmChat } from "@opencode-ai/core/swarm/chat"
+import { SwarmBoard } from "@opencode-ai/core/swarm/board"
+import { SwarmRAG } from "@opencode-ai/core/swarm/rag"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return (
@@ -114,6 +121,10 @@ const layer = Layer.effect(
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
+    const swarmChat = yield* SwarmChatTool
+    const swarmDM = yield* SwarmDMTool
+    const swarmBoard = yield* SwarmBoardTool
+    const swarmRecall = yield* SwarmRecallTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -223,6 +234,10 @@ const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          swarm_chat: Tool.init(swarmChat),
+          swarm_dm: Tool.init(swarmDM),
+          swarm_board: Tool.init(swarmBoard),
+          swarm_recall: Tool.init(swarmRecall),
           ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
         })
 
@@ -246,6 +261,10 @@ const layer = Layer.effect(
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
+            tool.swarm_chat,
+            tool.swarm_dm,
+            tool.swarm_board,
+            tool.swarm_recall,
           ],
           task: tool.task,
           read: tool.read,
@@ -449,6 +468,9 @@ export const node = LayerNode.make({
     MCP.node,
     Database.node,
     Ripgrep.node,
+    SwarmChat.node,
+    SwarmBoard.node,
+    SwarmRAG.node,
   ],
 })
 

@@ -14,7 +14,9 @@ import type { Agent } from "./agent"
 export function deriveSubagentSessionPermission(input: {
   parentSessionPermission: PermissionV1.Ruleset
   subagent: Agent.Info
+  infinite?: boolean
 }): PermissionV1.Ruleset {
+  if (input.infinite || input.subagent.options.swarm === true) return []
   const canTask = input.subagent.permission.some((rule) => rule.permission === "task")
   const canTodo = input.subagent.permission.some((rule) => rule.permission === "todowrite")
   return [

@@ -136,23 +136,27 @@ export const TaskTool = Tool.define(
       const session = params.task_id
         ? yield* sessions.get(SessionID.make(params.task_id)).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
         : undefined
+      const infinite = cfg.swarm?.infinite_permissions === true || next.options.swarm === true
       const childPermission = deriveSubagentSessionPermission({
         parentSessionPermission: parent.permission ?? [],
         subagent: next,
+        infinite,
       })
-      const childToolDenies = [
-        ...(next.permission.some((rule) => rule.permission === "todowrite")
-          ? []
-          : [{ permission: "todowrite" as const, pattern: "*" as const, action: "deny" as const }]),
-        ...(next.permission.some((rule) => rule.permission === id)
-          ? []
-          : [{ permission: id, pattern: "*" as const, action: "deny" as const }]),
-        ...(cfg.experimental?.primary_tools?.map((permission) => ({
-          permission,
-          pattern: "*" as const,
-          action: "deny" as const,
-        })) ?? []),
-      ]
+      const childToolDenies = infinite
+        ? []
+        : [
+            ...(next.permission.some((rule) => rule.permission === "todowrite")
+              ? []
+              : [{ permission: "todowrite" as const, pattern: "*" as const, action: "deny" as const }]),
+            ...(next.permission.some((rule) => rule.permission === id)
+              ? []
+              : [{ permission: id, pattern: "*" as const, action: "deny" as const }]),
+            ...(cfg.experimental?.primary_tools?.map((permission) => ({
+              permission,
+              pattern: "*" as const,
+              action: "deny" as const,
+            })) ?? []),
+          ]
       const nextSession =
         session ??
         (yield* sessions.create({

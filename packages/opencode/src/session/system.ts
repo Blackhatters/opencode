@@ -23,6 +23,10 @@ import { LocationServiceMap, locationServiceMapLayer } from "@opencode-ai/core/l
 import { Reference } from "@opencode-ai/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { Config } from "@/config/config"
+import { Swarm } from "@opencode-ai/schema/swarm"
+import { SwarmBoard } from "@opencode-ai/core/swarm/board"
+import { SwarmChat } from "@opencode-ai/core/swarm/chat"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse")) {
@@ -52,6 +56,7 @@ export interface Interface {
   readonly environment: (model: Provider.Model) => Effect.Effect<string[]>
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
+  readonly swarm: (agent: Agent.Info) => Effect.Effect<string | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SystemPrompt") {}
@@ -62,6 +67,9 @@ const layer = Layer.effect(
     const skill = yield* Skill.Service
     const mcp = yield* MCP.Service
     const locations = yield* LocationServiceMap.Service
+    const config = yield* Config.Service
+    const board = yield* SwarmBoard.Service
+    const chat = yield* SwarmChat.Service
 
     return Service.of({
       environment: Effect.fn("SystemPrompt.environment")(function* (model: Provider.Model) {
@@ -133,6 +141,41 @@ const layer = Layer.effect(
           "</mcp_instructions>",
         ].join("\n")
       }),
+
+      swarm: Effect.fn("SystemPrompt.swarm")(function* (agent: Agent.Info) {
+        if (agent.options.swarm !== true) return
+        const cfg = yield* config.get()
+        if (cfg.swarm?.enabled !== true) return
+        const ctx = yield* InstanceState.context
+        const swarmID = Swarm.ID.make(cfg.swarm.id ?? ctx.project.id)
+        const [items, messages] = yield* Effect.all([board.list({ swarmID }), chat.listChat(swarmID, 12)])
+        const open = items.filter((item) => item.status !== "done")
+        return [
+          "Shared swarm memory for this project.",
+          "<swarm>",
+          `  <id>${swarmID}</id>`,
+          "  <board>",
+          ...(open.length === 0
+            ? ["    (no open items)"]
+            : open.flatMap((item) => [
+                "    <item>",
+                `      <id>${item.id}</id>`,
+                `      <kind>${item.kind}</kind>`,
+                `      <status>${item.status}</status>`,
+                `      <title>${item.title}</title>`,
+                ...(item.assigneeSessionID ? [`      <assignee>${item.assigneeSessionID}</assignee>`] : []),
+                `      <body>${item.body}</body>`,
+                "    </item>",
+              ])),
+          "  </board>",
+          "  <chat>",
+          ...(messages.length === 0
+            ? ["    (empty)"]
+            : messages.map((message) => `    <message from="${message.fromAgent}">${message.text}</message>`)),
+          "  </chat>",
+          "</swarm>",
+        ].join("\n")
+      }),
     })
   }),
 )
@@ -146,7 +189,7 @@ const locationServiceMapNode = LayerNode.make({
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Skill.node, MCP.node, locationServiceMapNode],
+  deps: [Skill.node, MCP.node, locationServiceMapNode, Config.node, SwarmBoard.node, SwarmChat.node],
 })
 
 export * as SystemPrompt from "./system"

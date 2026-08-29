@@ -21,11 +21,14 @@ describe("SwarmRAG", () => {
         `${directory}/readme.md`,
         "Swarm agents share a goal board and a project recall index for reusable context.",
       )
+      yield* fs.ensureDir(`${directory}/node_modules`)
+      yield* fs.writeFileString(`${directory}/node_modules/skip.md`, "this should not be indexed")
       const count = yield* rag.index({ swarmID, directory })
       expect(count).toBeGreaterThan(0)
       const results = yield* rag.query({ swarmID, text: "goal board recall", topK: 3 })
       expect(results.length).toBeGreaterThan(0)
       expect(results[0]?.path).toBe("readme.md")
+      expect(results.some((item) => item.path.includes("node_modules"))).toBe(false)
     }),
   )
 })

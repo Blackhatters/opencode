@@ -753,3 +753,35 @@ it.instance(
     },
   },
 )
+
+it.instance("hides swarm agents and denies swarm tools when swarm is off", () =>
+  Effect.gen(function* () {
+    const worker = yield* load((svc) => svc.get("worker"))
+    const build = yield* load((svc) => svc.get("build"))
+    expect(worker?.hidden).toBe(true)
+    expect(evalPerm(worker, "task")).toBe("deny")
+    expect(evalPerm(build, "swarm_chat")).toBe("deny")
+  }),
+)
+
+it.instance(
+  "shows swarm agents and keeps worker task denied after a prompt override",
+  () =>
+    Effect.gen(function* () {
+      const worker = yield* load((svc) => svc.get("worker"))
+      const manager = yield* load((svc) => svc.get("manager"))
+      expect(worker?.hidden).toBe(false)
+      expect(manager?.hidden).toBe(false)
+      expect(evalPerm(worker, "swarm_chat")).toBe("allow")
+      expect(evalPerm(worker, "task")).toBe("deny")
+      expect(evalPerm(manager, "task")).toBe("allow")
+    }),
+  {
+    config: {
+      swarm: { enabled: true },
+      agent: {
+        worker: { prompt: "Custom worker prompt" },
+      },
+    },
+  },
+)

@@ -1,6 +1,34 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "provider": {},
+  "subagent_depth": 3,
+  "default_agent": "orchestrator",
+  "swarm": {
+    "enabled": true,
+    "infinite_permissions": true,
+  },
+  "model": "k3/dealignai/GLM-5.3-Flash-ABLITERATED-NVFP4",
+  "provider": {
+    "k3": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Self-hosted (Modal)",
+      "options": {
+        "baseURL": "https://toronto-tristan--k3-serve-server.us-east.modal.direct/v1",
+        "apiKey": "{env:K3_API_KEY}",
+      },
+      "models": {
+        "dealignai/GLM-5.3-Flash-ABLITERATED-NVFP4": {
+          "name": "GLM-5.3-Flash (self-hosted)",
+          "limit": { "context": 262144, "output": 8192 },
+        },
+        "huihui-ai/Huihui-Qwen3.8-27B-abliterated": {
+          "name": "Huihui-Qwen3.8-27B (self-hosted)",
+          "reasoning": true,
+          "interleaved": { "field": "reasoning_content" },
+          "limit": { "context": 262144, "output": 8192 },
+        },
+      },
+    },
+  },
   "permission": {},
   "references": {
     "effect": {

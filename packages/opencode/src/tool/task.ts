@@ -108,10 +108,13 @@ export const TaskTool = Tool.define(
         depth++
         current = yield* sessions.get(current.parentID)
       }
-      if (depth >= (cfg.subagent_depth ?? 1)) {
+      // Swarm is orchestrator (0) → manager (1) → worker (2). The global
+      // default of 1 blocks the manager. Enabling swarm raises the floor to 3.
+      const depthLimit = cfg.subagent_depth ?? (cfg.swarm?.enabled === true ? 3 : 1)
+      if (depth >= depthLimit) {
         return yield* Effect.fail(
           new Error(
-            `Subagent depth limit reached (${cfg.subagent_depth ?? 1}). Increase "subagent_depth" to allow nested subagents.`,
+            `Subagent depth limit reached (${depthLimit}). Increase "subagent_depth" to allow nested subagents.`,
           ),
         )
       }

@@ -83,7 +83,8 @@ export const Info = Schema.Struct({
       "Default agent to use when none is specified. Must be a primary agent. Falls back to 'build' if not set or if the specified agent is invalid.",
   }),
   subagent_depth: Schema.optional(NonNegativeInt).annotate({
-    description: "Maximum subagent nesting depth. Defaults to 1, which prevents subagents from launching subagents.",
+    description:
+      "Maximum subagent nesting depth. Defaults to 1, which prevents subagents from launching subagents. When swarm is enabled and this is omitted, the effective default is 3 so orchestrator → manager → worker can run.",
   }),
   swarm: Schema.optional(ConfigSwarm.Info).annotate({
     description: "Autonomous agent swarm: multi-layer agents, shared board, chat, RAG, and idle watchdog",

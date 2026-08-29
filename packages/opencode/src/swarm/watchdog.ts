@@ -38,9 +38,13 @@ const layer = Layer.effect(
     })
 
     const wake = Effect.fn("SwarmWatchdog.wake")(function* (sessionID: SessionID, text: string) {
+      const session = yield* sessions.get(sessionID)
       yield* prompt
         .prompt({
           sessionID,
+          // Omit agent and createUserMessage falls back to defaultInfo(), then
+          // setAgentModel rewrites a worker/manager onto build.
+          ...(session.agent ? { agent: session.agent } : {}),
           parts: [{ type: "text", text, synthetic: true }],
         })
         .pipe(Effect.ignore, Effect.forkIn(scope))

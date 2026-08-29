@@ -1,6 +1,6 @@
 # Swarm
 
-Enable with `"swarm": { "enabled": true, "infinite_permissions": true }` and `"subagent_depth": 3` in `opencode.json`.
+Enable with `"swarm": { "enabled": true, "infinite_permissions": true }` in `opencode.json`. Enabling swarm raises the effective `subagent_depth` default from 1 to 3 so orchestrator → manager → worker can run; set `subagent_depth` explicitly to override.
 
 Built-in agents:
 - `orchestrator` (primary): owns the shared goal and spawns managers

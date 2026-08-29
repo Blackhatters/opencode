@@ -585,6 +585,89 @@ describe("tool.task", () => {
   )
 
   it.instance(
+    "allows a swarm manager to spawn a worker when swarm is enabled without an explicit depth",
+    () =>
+      Effect.gen(function* () {
+        const sessions = yield* Session.Service
+        const { chat, assistant } = yield* seed()
+        const manager = yield* sessions.create({ parentID: chat.id, title: "manager", agent: "manager" })
+        const nestedAssistant = yield* sessions.updateMessage({
+          ...assistant,
+          id: MessageID.ascending(),
+          parentID: MessageID.ascending(),
+          sessionID: manager.id,
+        })
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+
+        const result = yield* def.execute(
+          {
+            description: "ship slice",
+            prompt: "implement the assigned board task",
+            subagent_type: "worker",
+          },
+          {
+            sessionID: manager.id,
+            messageID: nestedAssistant.id,
+            agent: "manager",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps() },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        const child = yield* sessions.get(result.metadata.sessionId)
+        expect(child.parentID).toBe(manager.id)
+        expect(child.agent).toBe("worker")
+      }),
+    { config: { swarm: { enabled: true } } },
+  )
+
+  it.instance(
+    "still honors an explicit subagent_depth of 1 when swarm is enabled",
+    () =>
+      Effect.gen(function* () {
+        const sessions = yield* Session.Service
+        const { chat, assistant } = yield* seed()
+        const manager = yield* sessions.create({ parentID: chat.id, title: "manager", agent: "manager" })
+        const nestedAssistant = yield* sessions.updateMessage({
+          ...assistant,
+          id: MessageID.ascending(),
+          parentID: MessageID.ascending(),
+          sessionID: manager.id,
+        })
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+
+        const exit = yield* def
+          .execute(
+            {
+              description: "ship slice",
+              prompt: "implement the assigned board task",
+              subagent_type: "worker",
+            },
+            {
+              sessionID: manager.id,
+              messageID: nestedAssistant.id,
+              agent: "manager",
+              abort: new AbortController().signal,
+              extra: { promptOps: stubOps() },
+              messages: [],
+              metadata: () => Effect.void,
+              ask: () => Effect.void,
+            },
+          )
+          .pipe(Effect.exit)
+
+        expect(Exit.isFailure(exit)).toBe(true)
+        expect(yield* sessions.children(manager.id)).toHaveLength(0)
+      }),
+    { config: { swarm: { enabled: true }, subagent_depth: 1 } },
+  )
+
+  it.instance(
     "execute shapes child permissions for task, todowrite, and primary tools",
     () =>
       Effect.gen(function* () {

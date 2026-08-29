@@ -26,6 +26,9 @@ describe("SwarmRAG", () => {
       const results = yield* rag.query({ swarmID, text: "goal board recall", topK: 3 })
       expect(results.length).toBeGreaterThan(0)
       expect(results[0]?.path).toBe("readme.md")
+      const listed = yield* rag.list(swarmID)
+      expect(listed.map((chunk) => chunk.path)).toContain("readme.md")
+      expect(listed[0]?.embedding.length).toBeGreaterThan(0)
     }),
   )
 })

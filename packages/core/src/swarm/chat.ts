@@ -1,6 +1,6 @@
 export * as SwarmChat from "./chat"
 
-import { and, desc, eq, isNull, or } from "drizzle-orm"
+import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Stream } from "effect"
 import { Swarm } from "@opencode-ai/schema/swarm"
 import { SwarmEvent } from "@opencode-ai/schema/swarm-event"
@@ -29,7 +29,7 @@ export interface Interface {
   readonly listChat: (swarmID: Swarm.ID, limit?: number) => Effect.Effect<ReadonlyArray<Swarm.Message>>
   readonly listDM: (input: {
     readonly swarmID: Swarm.ID
-    readonly sessionID: SessionID
+    readonly sessionID?: SessionID
     readonly withSessionID?: SessionID
     readonly limit?: number
   }) => Effect.Effect<ReadonlyArray<Swarm.Message>>
@@ -152,28 +152,14 @@ const layer = Layer.effect(
 
     const listDM = Effect.fn("SwarmChat.listDM")(function* (input: {
       readonly swarmID: Swarm.ID
-      readonly sessionID: SessionID
+      readonly sessionID?: SessionID
       readonly withSessionID?: SessionID
       readonly limit?: number
     }) {
-      const peer = input.withSessionID
       const rows = yield* db
         .select()
         .from(SwarmMessageTable)
-        .where(
-          and(
-            eq(SwarmMessageTable.swarm_id, input.swarmID),
-            peer
-              ? or(
-                  and(eq(SwarmMessageTable.from_session_id, input.sessionID), eq(SwarmMessageTable.to_session_id, peer)),
-                  and(eq(SwarmMessageTable.from_session_id, peer), eq(SwarmMessageTable.to_session_id, input.sessionID)),
-                )
-              : or(
-                  eq(SwarmMessageTable.from_session_id, input.sessionID),
-                  eq(SwarmMessageTable.to_session_id, input.sessionID),
-                ),
-          ),
-        )
+        .where(dmWhere(input))
         .orderBy(desc(SwarmMessageTable.time_created))
         .limit(input.limit ?? 50)
         .all()
@@ -186,6 +172,38 @@ const layer = Layer.effect(
     return Service.of({ postChat, postDM, listChat, listDM, subscribe })
   }),
 )
+
+function dmWhere(input: {
+  readonly swarmID: Swarm.ID
+  readonly sessionID?: SessionID
+  readonly withSessionID?: SessionID
+}) {
+  if (input.sessionID && input.withSessionID) {
+    return and(
+      eq(SwarmMessageTable.swarm_id, input.swarmID),
+      or(
+        and(
+          eq(SwarmMessageTable.from_session_id, input.sessionID),
+          eq(SwarmMessageTable.to_session_id, input.withSessionID),
+        ),
+        and(
+          eq(SwarmMessageTable.from_session_id, input.withSessionID),
+          eq(SwarmMessageTable.to_session_id, input.sessionID),
+        ),
+      ),
+    )
+  }
+  if (input.sessionID) {
+    return and(
+      eq(SwarmMessageTable.swarm_id, input.swarmID),
+      or(
+        eq(SwarmMessageTable.from_session_id, input.sessionID),
+        eq(SwarmMessageTable.to_session_id, input.sessionID),
+      ),
+    )
+  }
+  return and(eq(SwarmMessageTable.swarm_id, input.swarmID), isNotNull(SwarmMessageTable.to_session_id))
+}
 
 export const node = makeGlobalNode({
   service: Service,

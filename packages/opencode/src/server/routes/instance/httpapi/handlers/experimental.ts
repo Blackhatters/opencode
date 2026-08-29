@@ -14,7 +14,14 @@ import { Effect } from "effect"
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse"
 import { HttpApiBuilder, HttpApiError } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ConsoleSwitchPayload, SessionListQuery, ToolListQuery, WorktreeApiError } from "../groups/experimental"
+import {
+  ConsoleSwitchPayload,
+  SessionListQuery,
+  SwarmQuery,
+  ToolListQuery,
+  WorktreeApiError,
+} from "../groups/experimental"
+import { SwarmView } from "@/swarm/view"
 
 function mapWorktreeError<A, R>(self: Effect.Effect<A, Worktree.Error, R>) {
   return self.pipe(
@@ -140,6 +147,16 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
       return yield* mcp.resources()
     })
 
+    const swarm = Effect.fn("ExperimentalHttpApi.swarm")(function* (ctx: { query: typeof SwarmQuery.Type }) {
+      return yield* SwarmView.load({
+        ...(ctx.query.id ? { swarmID: ctx.query.id } : {}),
+        ...(ctx.query.limit ? { limit: ctx.query.limit } : {}),
+        ...(ctx.query.kind ? { kind: ctx.query.kind } : {}),
+        ...(ctx.query.status ? { status: ctx.query.status } : {}),
+        ...(ctx.query.session ? { sessionID: ctx.query.session } : {}),
+      })
+    })
+
     return handlers
       .handle("capabilities", capabilities)
       .handle("console", getConsole)
@@ -154,5 +171,6 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
       .handle("session", session)
       .handle("sessionBackground", sessionBackground)
       .handle("resource", resource)
+      .handle("swarm", swarm)
   }),
 )

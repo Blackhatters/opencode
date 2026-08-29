@@ -51,4 +51,26 @@ describe("SwarmChat", () => {
       expect(published).toEqual([SwarmEvent.DMPosted.type])
     }),
   )
+
+  it.effect("lists every DM in the swarm when no session is given", () =>
+    Effect.gen(function* () {
+      const chat = yield* SwarmChat.Service
+      const other = SessionID.make("ses_swarm_other")
+      yield* chat.postDM({
+        swarmID,
+        fromSessionID: from,
+        toSessionID: to,
+        fromAgent: "manager",
+        text: "to worker",
+      })
+      yield* chat.postDM({
+        swarmID,
+        fromSessionID: to,
+        toSessionID: other,
+        fromAgent: "worker",
+        text: "to other",
+      })
+      expect((yield* chat.listDM({ swarmID })).map((message) => message.text)).toEqual(["to worker", "to other"])
+    }),
+  )
 })

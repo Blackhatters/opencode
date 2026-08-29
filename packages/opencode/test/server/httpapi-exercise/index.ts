@@ -594,6 +594,10 @@ const scenarios: Scenario[] = [
       check(body === false, "background route should be a no-op without running subagents")
     }),
   http.protected.get("/experimental/resource", "experimental.resource.list").json(),
+  http.protected.get("/experimental/swarm", "experimental.swarm.get").json(200, (body) => {
+    check(typeof body === "object" && body !== null, "swarm snapshot should be an object")
+    check("board" in body && "chat" in body && "dm" in body, "swarm snapshot should include board, chat, and dms")
+  }),
   http.protected
     .post("/sync/history", "sync.history.list")
     .at((ctx) => ({ path: "/sync/history", headers: ctx.headers(), body: {} }))

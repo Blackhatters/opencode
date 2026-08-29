@@ -45,6 +45,8 @@ import { Skill } from "@/skill"
 import { Discovery } from "@/skill/discovery"
 import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
+import { SwarmBoard } from "@opencode-ai/core/swarm/board"
+import { SwarmChat } from "@opencode-ai/core/swarm/chat"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Worktree } from "@/worktree"
@@ -244,6 +246,8 @@ const app = LayerNode.group([
   SessionRevert.node,
   SessionSummary.node,
   SessionPrompt.node,
+  SwarmBoard.node,
+  SwarmChat.node,
   Instruction.node,
   LLM.node,
   LSP.node,

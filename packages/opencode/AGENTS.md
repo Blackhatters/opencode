@@ -17,6 +17,10 @@ Tools (allowed on swarm agents):
 
 `infinite_permissions` (or `options.swarm: true` on an agent) skips parent deny inheritance when spawning subagents.
 
+Inspect the board, broadcast chat, and direct messages with `opencode swarm` or the TUI `/swarm` command. `opencode swarm board`, `opencode swarm chat`, and `opencode swarm dm` show one section.
+
+Export the RAG index as an Obsidian vault with `opencode swarm export`. It writes markdown notes to `.opencode/swarm-rag` (or a path you pass). Use `--reindex` to rebuild from the workspace first, then open that folder as a vault.
+
 # opencode database guide
 
 ## Database

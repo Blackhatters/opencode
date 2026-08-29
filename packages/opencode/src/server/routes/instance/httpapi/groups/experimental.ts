@@ -18,6 +18,7 @@ import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { Swarm } from "@opencode-ai/schema/swarm"
 
 const ConsoleStateResponse = Schema.Struct({
   consoleManagedProviders: Schema.mutable(Schema.Array(Schema.String)),
@@ -87,6 +88,23 @@ export const SessionListQuery = Schema.Struct({
   archived: Schema.optional(QueryBoolean),
 })
 
+export const SwarmQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  limit: Schema.optional(Schema.NumberFromString),
+  kind: Schema.optional(Swarm.BoardKind),
+  status: Schema.optional(Swarm.BoardStatus),
+  session: Schema.optional(Schema.String),
+  id: Schema.optional(Schema.String),
+})
+
+const SwarmSnapshot = Schema.Struct({
+  swarmID: Swarm.ID,
+  enabled: Schema.Boolean,
+  board: Schema.Array(Swarm.BoardItem),
+  chat: Schema.Array(Swarm.Message),
+  dm: Schema.Array(Swarm.Message),
+}).annotate({ identifier: "Swarm.Snapshot" })
+
 export const ExperimentalPaths = {
   capabilities: "/experimental/capabilities",
   console: "/experimental/console",
@@ -99,6 +117,7 @@ export const ExperimentalPaths = {
   session: "/experimental/session",
   sessionBackground: "/experimental/session/:sessionID/background",
   resource: "/experimental/resource",
+  swarm: "/experimental/swarm",
 } as const
 
 export const ExperimentalApi = HttpApi.make("experimental")
@@ -253,6 +272,16 @@ export const ExperimentalApi = HttpApi.make("experimental")
             identifier: "experimental.resource.list",
             summary: "Get MCP resources",
             description: "Get all available MCP resources from connected servers. Optionally filter by name.",
+          }),
+        ),
+        HttpApiEndpoint.get("swarm", ExperimentalPaths.swarm, {
+          query: SwarmQuery,
+          success: described(SwarmSnapshot, "Swarm board, chat, and direct messages"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "experimental.swarm.get",
+            summary: "Get swarm snapshot",
+            description: "Get the current swarm board, broadcast chat, and direct messages between agents.",
           }),
         ),
       )

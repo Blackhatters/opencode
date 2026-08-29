@@ -1,6 +1,6 @@
 export * as SwarmRAG from "./rag"
 
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 import { Swarm } from "@opencode-ai/schema/swarm"
 import { Database } from "../database/database"
@@ -20,6 +20,14 @@ export interface QueryResult {
   readonly score: number
 }
 
+export interface Chunk {
+  readonly id: Swarm.RAGChunkID
+  readonly path: string
+  readonly chunkIndex: number
+  readonly text: string
+  readonly embedding: ReadonlyArray<number>
+}
+
 export interface Interface {
   readonly index: (input: { readonly swarmID: Swarm.ID; readonly directory: string }) => Effect.Effect<number>
   readonly query: (input: {
@@ -27,6 +35,7 @@ export interface Interface {
     readonly text: string
     readonly topK?: number
   }) => Effect.Effect<ReadonlyArray<QueryResult>>
+  readonly list: (swarmID: Swarm.ID) => Effect.Effect<ReadonlyArray<Chunk>>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/v2/SwarmRAG") {}
@@ -123,7 +132,24 @@ const layer = Layer.effect(
         .slice(0, input.topK ?? 8)
     })
 
-    return Service.of({ index, query })
+    const list = Effect.fn("SwarmRAG.list")(function* (swarmID: Swarm.ID) {
+      const rows = yield* db
+        .select()
+        .from(SwarmRAGTable)
+        .where(eq(SwarmRAGTable.swarm_id, swarmID))
+        .orderBy(asc(SwarmRAGTable.path), asc(SwarmRAGTable.chunk_index))
+        .all()
+        .pipe(Effect.orDie)
+      return rows.map((row) => ({
+        id: row.id,
+        path: row.path,
+        chunkIndex: row.chunk_index,
+        text: row.text,
+        embedding: row.embedding,
+      }))
+    })
+
+    return Service.of({ index, query, list })
   }),
 )
 

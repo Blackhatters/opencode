@@ -11,7 +11,7 @@
 // If a future change should make one of these commands intentionally fail in
 // an empty env, update the assertion + add a note explaining the new contract.
 //
-// Speed: each test pays ~1.5s for bun startup. 7 tests serialize within this
+// Speed: each test pays ~1.5s for bun startup. 8 tests serialize within this
 // file. See script/prebuild-test-cli.ts for an opt-in pre-built binary that
 // cuts per-spawn cost when this suite gets bigger.
 import { describe, expect } from "bun:test"
@@ -71,6 +71,20 @@ describe("opencode read-only commands (smoke)", () => {
       Effect.gen(function* () {
         const r = yield* opencode.spawn(["agent", "list"])
         opencode.expectExit(r, 0, "agent list")
+      }),
+    60_000,
+  )
+
+  // `swarm` reads the swarm board and message tables. Fresh
+  // OPENCODE_TEST_HOME means empty tables. Exit 0 with empty sections.
+  cliIt.live(
+    "swarm: exits 0 and prints empty board and messages",
+    ({ opencode }) =>
+      Effect.gen(function* () {
+        const r = yield* opencode.spawn(["swarm"])
+        opencode.expectExit(r, 0, "swarm")
+        expect(r.stdout).toContain("Board")
+        expect(r.stdout).toContain("Direct messages")
       }),
     60_000,
   )

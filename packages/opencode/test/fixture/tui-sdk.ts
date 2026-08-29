@@ -63,6 +63,8 @@ export function createFetch(override?: FetchHandler) {
         return json({ providers: {}, default: {} })
       case "/experimental/console":
         return json({ consoleManagedProviders: [], switchableOrgCount: 0 })
+      case "/experimental/swarm":
+        return json({ swarmID: "proj_test", enabled: false, board: [], chat: [], dm: [] })
       case "/path":
         return json({ home: "", state: "", config: "", worktree, directory })
       case "/project/current":

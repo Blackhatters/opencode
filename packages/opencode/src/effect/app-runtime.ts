@@ -29,6 +29,9 @@ import { SessionCompaction } from "@/session/compaction"
 import { SessionRevert } from "@/session/revert"
 import { SessionSummary } from "@/session/summary"
 import { SessionPrompt } from "@/session/prompt"
+import { SwarmBoard } from "@opencode-ai/core/swarm/board"
+import { SwarmChat } from "@opencode-ai/core/swarm/chat"
+import { SwarmRAG } from "@opencode-ai/core/swarm/rag"
 import { SwarmWatchdog } from "@/swarm/watchdog"
 import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
@@ -89,6 +92,9 @@ export const AppLayer = AppNodeBuilderV1.build(
     SessionRevert.node,
     SessionSummary.node,
     SessionPrompt.node,
+    SwarmBoard.node,
+    SwarmChat.node,
+    SwarmRAG.node,
     SwarmWatchdog.node,
     Instruction.node,
     LLM.node,

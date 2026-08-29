@@ -43,6 +43,7 @@ import { DialogModel } from "./component/dialog-model"
 import { useConnected } from "./component/use-connected"
 import { DialogMcp } from "./component/dialog-mcp"
 import { DialogStatus } from "./component/dialog-status"
+import { DialogSwarm } from "./component/dialog-swarm"
 import { DialogDebug } from "./component/dialog-debug"
 import { DialogThemeList } from "./component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
@@ -119,6 +120,7 @@ const appBindingCommands = [
   "provider.connect",
   "console.org.switch",
   "opencode.status",
+  "swarm.view",
   "opencode.debug",
   "theme.switch",
   "theme.switch_mode",
@@ -768,6 +770,15 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
           dialog.replace(() => <DialogStatus />)
         },
         category: "System",
+      },
+      {
+        name: "swarm.view",
+        title: "View swarm board and messages",
+        slashName: "swarm",
+        run: () => {
+          dialog.replace(() => <DialogSwarm />)
+        },
+        category: "Agent",
       },
       {
         name: "opencode.debug",

@@ -1,6 +1,7 @@
 export * as SwarmRAG from "./rag"
 
 import { asc, eq } from "drizzle-orm"
+import { relative, sep } from "path"
 import { Context, Effect, Layer } from "effect"
 import { Swarm } from "@opencode-ai/schema/swarm"
 import { Database } from "../database/database"
@@ -82,30 +83,46 @@ const layer = Layer.effect(
           absolute: true,
         })
         .pipe(Effect.orDie)
-      const selected = files.filter((file) => !file.split("/").some((part) => SKIP.has(part))).slice(0, 400)
-      yield* db.delete(SwarmRAGTable).where(eq(SwarmRAGTable.swarm_id, input.swarmID)).run().pipe(Effect.orDie)
-      let count = 0
-      for (const file of selected) {
-        const text = yield* fs.readFileStringSafe(file).pipe(Effect.orDie)
-        if (!text) continue
-        const relative = file.startsWith(input.directory) ? file.slice(input.directory.length).replace(/^\//, "") : file
-        for (const [chunkIndex, part] of chunks(text).entries()) {
-          yield* db
-            .insert(SwarmRAGTable)
-            .values({
-              id: Swarm.RAGChunkID.create(),
-              swarm_id: input.swarmID,
-              path: relative,
-              chunk_index: chunkIndex,
-              text: part,
-              embedding: embed(part),
-            })
-            .run()
-            .pipe(Effect.orDie)
-          count++
-        }
-      }
-      return count
+      const selected = files
+        .filter((file) => !skipped(file))
+        .toSorted((left, right) => left.localeCompare(right))
+        .slice(0, 400)
+      const written = yield* db
+        .transaction(() =>
+          Effect.gen(function* () {
+            yield* db.delete(SwarmRAGTable).where(eq(SwarmRAGTable.swarm_id, input.swarmID)).run().pipe(Effect.orDie)
+            return yield* Effect.forEach(
+              selected,
+              (file) =>
+                Effect.gen(function* () {
+                  const text = yield* fs.readFileStringSafe(file).pipe(Effect.orDie)
+                  if (!text) return 0
+                  const parts = chunks(text)
+                  yield* Effect.forEach(
+                    parts,
+                    (part, chunkIndex) =>
+                      db
+                        .insert(SwarmRAGTable)
+                        .values({
+                          id: Swarm.RAGChunkID.create(),
+                          swarm_id: input.swarmID,
+                          path: workspacePath(input.directory, file),
+                          chunk_index: chunkIndex,
+                          text: part,
+                          embedding: embed(part),
+                        })
+                        .run()
+                        .pipe(Effect.orDie),
+                    { concurrency: 1 },
+                  )
+                  return parts.length
+                }),
+              { concurrency: 1 },
+            )
+          }),
+        )
+        .pipe(Effect.orDie)
+      return written.reduce((sum, count) => sum + count, 0)
     })
 
     const query = Effect.fn("SwarmRAG.query")(function* (input: {
@@ -152,5 +169,15 @@ const layer = Layer.effect(
     return Service.of({ index, query, list })
   }),
 )
+
+function skipped(file: string) {
+  return file.split(/[\\/]/).some((part) => SKIP.has(part))
+}
+
+function workspacePath(directory: string, file: string) {
+  const next = relative(directory, file)
+  if (!next || next === ".." || next.startsWith(`..${sep}`)) return file.split(/[\\/]/).join("/")
+  return next.split(sep).join("/")
+}
 
 export const node = makeGlobalNode({ service: Service, layer, deps: [Database.node, FSUtil.node] })

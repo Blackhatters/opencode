@@ -10,6 +10,7 @@ import { Agent } from "../agent/agent"
 import { deriveSubagentSessionPermission } from "../agent/subagent-permissions"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
+import { ConfigSwarm } from "@opencode-ai/core/config/swarm"
 import { Effect, Exit, Schema, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -108,9 +109,9 @@ export const TaskTool = Tool.define(
         depth++
         current = yield* sessions.get(current.parentID)
       }
-      // Swarm is orchestrator (0) → manager (1) → worker (2). The global
-      // default of 1 blocks the manager. Enabling swarm raises the floor to 3.
-      const depthLimit = cfg.subagent_depth ?? (cfg.swarm?.enabled === true ? 3 : 1)
+      // Swarm is orchestrator (0) → manager (1) → worker (2). Enabling swarm
+      // raises the default from 1 to 3; an explicit subagent_depth still wins.
+      const depthLimit = ConfigSwarm.depthLimit(cfg)
       if (depth >= depthLimit) {
         return yield* Effect.fail(
           new Error(
@@ -132,7 +133,7 @@ export const TaskTool = Tool.define(
       }
 
       const next = yield* agent.get(params.subagent_type)
-      if (!next) {
+      if (!next || next.hidden === true) {
         return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
       }
 

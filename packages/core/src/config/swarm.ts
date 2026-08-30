@@ -25,3 +25,18 @@ export class Info extends Schema.Class<Info>("Config.Swarm")({
       "When true (the default), new sessions start with empty swarm DMs and receive later direct messages as context diffs. Set false to include recent DMs in the session baseline",
   }),
 }) {}
+
+const DEFAULT_DEPTH = 1
+const SWARM_DEPTH = 3
+
+export function depthLimit(input: { swarm?: { enabled?: boolean }; subagent_depth?: number }) {
+  if (input.subagent_depth !== undefined) return input.subagent_depth
+  if (input.swarm?.enabled === true) return SWARM_DEPTH
+  return DEFAULT_DEPTH
+}
+
+export function fromDocuments(swarms: ReadonlyArray<Info | undefined>) {
+  const found = swarms.filter((item): item is Info => item !== undefined)
+  if (found.length === 0) return
+  return found.reduce((current, next) => new Info({ ...current, ...next }))
+}

@@ -352,6 +352,14 @@ const layer = Layer.effect(
           }
         }
 
+        const workerPermission = cfg.agent?.worker?.permission
+        if (
+          agents.worker?.options.swarm === true &&
+          !(workerPermission && typeof workerPermission === "object" && "task" in workerPermission)
+        ) {
+          agents.worker.permission = Permission.merge(agents.worker.permission, Permission.fromConfig({ task: "deny" }))
+        }
+
         // Ensure Truncate.GLOB is allowed unless explicitly configured
         for (const name in agents) {
           const agent = agents[name]

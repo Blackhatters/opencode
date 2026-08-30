@@ -3,6 +3,7 @@ export * as SwarmContext from "./context"
 import { Effect, Layer, Schema } from "effect"
 import { Swarm } from "@opencode-ai/schema/swarm"
 import { Config } from "../config"
+import { ConfigSwarm } from "../config/swarm"
 import { makeLocationNode } from "../effect/app-node"
 import { Location } from "../location"
 import { SystemContext } from "../system-context/index"
@@ -152,7 +153,9 @@ const layer = Layer.effectDiscard(
     const board = yield* SwarmBoard.Service
     const chat = yield* SwarmChat.Service
     const entries = yield* config.entries()
-    const swarm = Config.latest(entries, "swarm")
+    const swarm = ConfigSwarm.fromDocuments(
+      entries.flatMap((entry) => (entry.type === "document" && entry.info.swarm ? [entry.info.swarm] : [])),
+    )
     if (swarm?.enabled !== true) return
     const swarmID = Swarm.ID.make(swarm.id ?? location.project.id)
     const flags = {

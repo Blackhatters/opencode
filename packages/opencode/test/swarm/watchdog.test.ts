@@ -1,4 +1,4 @@
-import { afterEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Database } from "@opencode-ai/core/database/database"
 import { makeGlobalNode } from "@opencode-ai/core/effect/app-node"
@@ -12,9 +12,10 @@ import { Config } from "@/config/config"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Session } from "@/session/session"
 import { SessionPrompt } from "@/session/prompt"
-import { SwarmWatchdog } from "@/swarm/watchdog"
+import { SwarmWatchdog, wakeInput } from "@/swarm/watchdog"
 import { SwarmEvent } from "@opencode-ai/schema/swarm-event"
-import { MessageID, SessionID } from "../../src/session/schema"
+import { SessionID } from "@opencode-ai/schema/session-id"
+import { MessageID } from "../../src/session/schema"
 import { disposeAllInstances } from "../fixture/fixture"
 import { awaitWithTimeout, testEffect } from "../lib/effect"
 import { ProviderV2 } from "@opencode-ai/core/provider"
@@ -22,6 +23,22 @@ import { ModelV2 } from "@opencode-ai/core/model"
 
 afterEach(async () => {
   await disposeAllInstances()
+})
+
+describe("SwarmWatchdog.wakeInput", () => {
+  test("preserves the session agent so a wake cannot rewrite it", () => {
+    const sessionID = SessionID.make("ses_worker")
+    const input = wakeInput({ id: sessionID, agent: "worker" }, "continue")
+    expect(input).toEqual({
+      sessionID,
+      agent: "worker",
+      parts: [{ type: "text", text: "continue", synthetic: true }],
+    })
+  })
+
+  test("skips sessions with no agent", () => {
+    expect(wakeInput({ id: SessionID.make("ses_none") }, "continue")).toBeUndefined()
+  })
 })
 
 const workerID = SessionID.make("ses_worker")
